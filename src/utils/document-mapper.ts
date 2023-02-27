@@ -1,4 +1,4 @@
-import { Entity, Field } from "./model-interfaces";
+import { Entity, Field } from "../model-interfaces";
 
 export class DocumentMapper {
   static toEntity(data: any): Entity {
