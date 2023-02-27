@@ -1,8 +1,8 @@
 import { RequestOptions, RESTDataSource } from '@apollo/datasource-rest';
 import { RequestDeduplicationPolicy } from '@apollo/datasource-rest/dist/RESTDataSource';
 import type { KeyValueCache } from '@apollo/utils.keyvaluecache';
-import { DocumentMapper } from './document-mapper.js';
-import { Document, Entity } from './model-interfaces';
+import { DocumentMapper } from '../utils/document-mapper.js';
+import { Document, Entity } from '../model-interfaces';
 
 export class FirebaseAPI extends RESTDataSource {
   private projectId = "motomotagp";
