@@ -15,11 +15,13 @@
     "@apollo/datasource-rest": "^5.0.2",
     "@apollo/server": "^4.4.0",
     "@apollo/utils.keyvaluecache": "^2.1.0",
+    "@graphql-mesh/mysql": "^0.19.20",
     "crypto-js": "^4.1.1",
     "dotenv": "^16.0.3",
     "graphql": "^16.6.0",
     "knex": "^2.4.2",
     "knex-tiny-logger": "^2.1.0",
+    "moment": "^2.29.4",
     "mysql": "^2.18.1"
   },
   "devDependencies": {
