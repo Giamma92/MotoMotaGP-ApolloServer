@@ -253,11 +253,14 @@ const server = new ApolloServer({
   // dataSources: () => ({ db })
 });
 
+
+// await server.listen({ port: process.env.PORT || 4000 });
 // Passing an ApolloServer instance to the `startStandaloneServer` function:
 //  1. creates an Express app
 //  2. installs your ApolloServer instance as middleware
 //  3. prepares your app to handle incoming requests
 const { url } = await startStandaloneServer(server, {
+  listen: { port: +process.env.PORT || 4000 },
   context: async () => {
     const { cache } = server;
     return {
