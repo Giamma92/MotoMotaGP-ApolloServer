@@ -238,7 +238,8 @@ const knexConfig = {
     port : process.env.DB_PORT,
     user : process.env.DB_USERNAME,
     password : process.env.DB_PWD,
-    database : process.env.DB_NAME
+    database : process.env.DB_NAME,
+    ssl : true
   }
 };
 
