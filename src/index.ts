@@ -1,15 +1,20 @@
 import { ApolloServer } from "@apollo/server";
 import { startStandaloneServer } from "@apollo/server/standalone";
-import { PersonalizationAPI } from "./personalizationApi.js";
-import { FirebaseAPI } from "./firebase-api.js";
+// import { PersonalizationAPI } from "./data-sources/personalizationApi.js";
+// import { FirebaseAPI } from "./data-sources/firebase-api.js";
+import { MyDatabase }  from "./data-sources/sql-database.js";
+import { dateScalar } from './custom-types/date-scalar.js';
 
-interface FirebaseContext {
-  dataSources: FirebaseDataSource;
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+interface DataSourceContext {
+  dataSources: DataSources;
 }
 
-interface FirebaseDataSource {
-  firebaseAPI: FirebaseAPI;
-  personalizationAPI: PersonalizationAPI;
+interface DataSources {
+  db: MyDatabase
 }
 
 // A schema is a collection of type definitions (hence "typeDefs")
@@ -18,38 +23,173 @@ interface FirebaseDataSource {
 const typeDefs = `#graphql
     # Comments in GraphQL strings (such as this one) start with the hash (#) symbol.
 
-    # This "Book" type defines the queryable fields for every book in our data source.
+    scalar Date
 
-    type Document {
-      documents: [Entity],
-      documentCount: Int,
-      readTime: String,
-      transaction: String
+    type Calendario {
+      id: Int!
+      ordine_gp: Int!
+      nome_gara: String!
+      data: Date!
+      ora_limite_scommesse: String!
+      # fk_gara: Int!
+      # fk_campionato: Int
+      # ordine_gp: Int!
     }
 
-    type Entity {
-      name: String
-      fields: [Field],
-      createTime: String,
-      updateTime: String,
+    type Campionati {
+      pk: Int!
+      descrizione: String!
+      data_inizio: String!
+      anno: Int!
     }
 
-    type Field {
-      name: String,
-      value: String
+    type Classifica {
+      pk: Int!
+      iduser: String!
+      fk_campionato: Int!
+      posizione: Int!
+      punteggio: Int!
     }
 
-    # type CustomerList {
-    #   name: ID
-    #   value: Customer
-    # }
+    type Configurazione {
+      id: Int!
+      id_campionato: Int!
+      session_timeout: Int!
+      bets_limit_points: Int!
+      bets_limit_sprintrace_points: Int!
+      bets_limit_pilota: Int!
+      bets_limit_sprint_pilota: Int!
+      bets_limit_gara: Int!
+      bets_limit_gara_sprint: Int!
+      formation_limit_pilota: Int!
+    }
+
+    type Gare {
+      pk: Int!
+      nome: String!
+      luogo: String!
+    }
+
+    type Pagamenti {
+      pk: Int!
+      iduser: String!
+      fk_calendario: Int
+      pagato: Int!
+      quota: Int!
+      timestamp: String!
+    }
+
+    type Piloti {
+      pk: Int!
+      nome: String!
+      cognome: String!
+    }
+
+    type Piloti_campionato {
+      pk: Int!
+      fk_campionato: Int!
+      fk_pilota: Int!
+      fk_scuderia: Int!
+    }
+
+    type Regolamenti {
+      pk: Int!
+      fk_campionato: Int!
+      nome_doc: String!
+    }
+
+    type Risultatimotogp {
+      pk: Int!
+      fk_campionato: Int!
+      fk_gara: Int!
+      fk_pilota: Int!
+      nome_pilota: String!
+      cognome_pilota: String!
+      punti_qualifica: Int!
+      punti_gara: Int!
+    }
+
+    type Ruoli {
+      pk_ruolo: Int!
+      descr: String!
+    }
+
+    type Schieramenti {
+      pk: Int!
+      fk_campionato: Int!
+      fk_gara: Int!
+      id_utente: String!
+      fk_pilota_gara: Int!
+      fk_pilota_qualifica: Int!
+      data_ora_ins: String!
+    }
+
+    type Scommesse {
+      pk: Int!
+      fk_campionato: Int!
+      idutente: String!
+      fk_gara: Int!
+      fk_pilota: Int!
+      posizione: Int!
+      pt: Int!
+      data_ora_ins: String!
+      esito: Int
+    }
+
+    type Scommesse_sprintrace {
+      pk: Int!
+      fk_campionato: Int!
+      idutente: String!
+      fk_gara: Int!
+      fk_pilota: Int!
+      posizione: Int!
+      pt: Int!
+      data_ora_ins: String!
+      esito: Int
+    }
+
+    type Scuderie {
+      pk: Int!
+      nome: String!
+    }
+
+    type Teams {
+      pk: Int!
+      iduser: String!
+      nome: String!
+      teamimage: String!
+      fk_campionato: Int!
+      pilota_ufficiale: Int!
+      pilota_riserva: Int!
+      capotecnico: Int!
+      capotecnico_riserva: Int!
+    }
+
+    type Utenti {
+      iduser: String!
+      pwd: String!
+      last_access: String
+      change_first: Int!
+      nome: String
+      cognome: String
+      idprofile: String!
+      profileimage: String!
+    }
+
+    type Utenti_ruoli {
+      pk: Int!
+      fk_utente: String!
+      fk_ruolo: Int!
+    }
 
     # The "Query" type is special: it lists all of the available queries that
-    # clients can execute, along with the return type for each. In this
-    # case, the "books" query returns an array of zero or more Books (defined above).
+    # clients can execute, along with the return type for each.
     type Query {
-        entity(collection: String, id: ID): Entity,
-        getEntities(collection: String, limit: Int!): [Entity]
+        calendario(id_campionato: Int!): [Calendario],
+        config(id: Int!): Configurazione,
+        user(username: String!, password: String!): Utenti
+        # entity(collection: String, id: ID): Entity,
+        # getEntities(collection: String, limit: Int!): [Entity]
     }
 `;
 
@@ -68,37 +208,67 @@ const typeDefs = `#graphql
 // This resolver retrieves books from the "books" array above.
 const resolvers = {
   Query: {
-    entity: async (parent, args, ctx: FirebaseContext) => {
-      return ctx.dataSources.firebaseAPI.getEntity(args.collection, args.id);
+    calendario: async (parent, args, ctx: DataSourceContext) => {
+      return ctx.dataSources.db.getCalendar(args.id_campionato);
     },
-    getEntities: async (parent, args, ctx: FirebaseContext) => {
-      return ctx.dataSources.firebaseAPI.getEntities(args.collection, args.limit);
+    config: async (parent, args, ctx: DataSourceContext) => {
+      return ctx.dataSources.db.getConfiguration(args.id);
     },
+    user: async (parent, args, ctx: DataSourceContext) => {
+      return ctx.dataSources.db.getUser(args.username, args.password);
+    },
+    // getEntities: async (parent, args, ctx: DataSourceContext) => {
+    //   return ctx.dataSources.db.getEntities(args.collection, args.limit);
+    // },
   },
+  Date: dateScalar,
 };
 
 // The ApolloServer constructor requires two parameters: your schema
 // definition and your set of resolvers.
+// const server = new ApolloServer({
+//   typeDefs,
+//   resolvers,
+// });
+
+const knexConfig = {
+  client: 'mysql',
+  connection: {
+    host : process.env.DB_HOST,
+    port : process.env.DB_PORT,
+    user : process.env.DB_USERNAME,
+    password : process.env.DB_PWD,
+    database : process.env.DB_NAME,
+    ssl : true
+  }
+};
+
+// you can also pass a knex instance instead of a configuration object
+const db = new MyDatabase(knexConfig);
+
 const server = new ApolloServer({
   typeDefs,
-  resolvers,
+  resolvers
+  // cache,
+  // context,
+  // dataSources: () => ({ db })
 });
 
+
+// await server.listen({ port: process.env.PORT || 4000 });
 // Passing an ApolloServer instance to the `startStandaloneServer` function:
 //  1. creates an Express app
 //  2. installs your ApolloServer instance as middleware
 //  3. prepares your app to handle incoming requests
 const { url } = await startStandaloneServer(server, {
+  listen: { port: +process.env.PORT || 4000 },
   context: async () => {
     const { cache } = server;
     return {
       // We create new instances of our data sources with each request,
       // passing in our server's cache.
-      dataSources: {
-        firebaseAPI: new FirebaseAPI({ cache }),
-        personalizationAPI: new PersonalizationAPI({ cache }),
-      },
-    } as FirebaseContext;
+      dataSources: { db: db },
+    } as DataSourceContext
   },
 });
 
