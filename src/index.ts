@@ -44,9 +44,10 @@ const typeDefs = `#graphql
     }
 
     type Classifica {
-      pk: Int!
-      iduser: String!
-      fk_campionato: Int!
+      id: Int!
+      username: String!
+      nomeCognome: String!
+      # fk_campionato: Int!
       posizione: Int!
       punteggio: Int!
     }
@@ -154,15 +155,21 @@ const typeDefs = `#graphql
     }
 
     type Teams {
-      pk: Int!
-      iduser: String!
+      id: Int!
+      username: String!
       nome: String!
       teamimage: String!
-      fk_campionato: Int!
-      pilota_ufficiale: Int!
-      pilota_riserva: Int!
-      capotecnico: Int!
-      capotecnico_riserva: Int!
+      id_campionato: Int!
+      pilota_fascia1: String!
+      pilota_fascia2: String!
+      pilota_fascia3: String!
+
+      # pilota_fascia1_nome: String!
+      # pilota_fascia1_cognome: String!
+      # pilota_fascia2_nome: String!
+      # pilota_fascia2_cognome: String!
+      # pilota_fascia3_nome: String!
+      # pilota_fascia3_cognome: String!
     }
 
     type Utenti {
@@ -185,9 +192,12 @@ const typeDefs = `#graphql
     # The "Query" type is special: it lists all of the available queries that
     # clients can execute, along with the return type for each.
     type Query {
-        calendario(id_campionato: Int!): [Calendario],
-        config(id: Int!): Configurazione,
-        user(username: String!, password: String!): Utenti
+        calendario(idCampionato: String!): [Calendario],
+        config(id: String!): Configurazione,
+        user(username: String!, password: String!): Utenti,
+        team(username: String!, idCampionato: String!): Teams,
+        teams(idCampionato: String!): [Teams],
+        classifica(idCampionato: String!, username: String): [Classifica],
         # entity(collection: String, id: ID): Entity,
         # getEntities(collection: String, limit: Int!): [Entity]
     }
@@ -209,13 +219,22 @@ const typeDefs = `#graphql
 const resolvers = {
   Query: {
     calendario: async (parent, args, ctx: DataSourceContext) => {
-      return ctx.dataSources.db.getCalendar(args.id_campionato);
+      return ctx.dataSources.db.getCalendar(args.idCampionato);
     },
     config: async (parent, args, ctx: DataSourceContext) => {
       return ctx.dataSources.db.getConfiguration(args.id);
     },
     user: async (parent, args, ctx: DataSourceContext) => {
       return ctx.dataSources.db.getUser(args.username, args.password);
+    },
+    team: async (parent, args, ctx: DataSourceContext) => {
+      return ctx.dataSources.db.getTeam(args.username, args.idCampionato);
+    },
+    teams: async (parent, args, ctx: DataSourceContext) => {
+      return ctx.dataSources.db.getTeams(args.idCampionato);
+    },
+    classifica: async (parent, args, ctx: DataSourceContext) => {
+      return ctx.dataSources.db.getClassifica(args.idCampionato, args.username);
     },
     // getEntities: async (parent, args, ctx: DataSourceContext) => {
     //   return ctx.dataSources.db.getEntities(args.collection, args.limit);
