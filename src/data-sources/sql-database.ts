@@ -5,14 +5,15 @@ const MINUTE = 60;
 export class MyDatabase extends SQLDataSource {
 
   getCalendar(idCampionato: string) {
-    return this.knex('calendario')
-      .join('gare', 'gare.pk', '=', 'calendario.fk_gara')
-      .where('calendario.fk_campionato', idCampionato)
-      .select(this.knex.ref('calendario.pk').as('id'), 
-              this.knex.ref('calendario.ordine_gp').as('ordine_gp'), 
-              this.knex.ref('gare.nome').as('nome_gara'),
-              this.knex.ref('calendario.data').as('data'),
-              this.knex.ref('calendario.ora_limite').as('ora_limite_scommesse'));
+    return this.knex(this.knex.ref('calendario').as("c"))
+      .join(this.knex.ref('gare').as('g'), 'g.pk', '=', 'c.fk_gara')
+      .where('c.fk_campionato', idCampionato)
+      .select(this.knex.ref('c.pk').as('id'), 
+              this.knex.ref('c.ordine_gp').as('ordine_gp'), 
+              this.knex.ref('g.nome').as('nome_gara'),
+              this.knex.ref('g.luogo').as('luogo_gara'), 
+              this.knex.ref('c.data').as('data'),
+              this.knex.ref('c.ora_limite').as('ora_limite_scommesse'));
     
       //.cache(MINUTE);
   }
@@ -93,4 +94,57 @@ export class MyDatabase extends SQLDataSource {
 
     return query;
   }
+
+  //Prossima gara
+  // SELECT gare.pk as pkgara, gare.nome as nomegara, calendario.data as data, calendario.ora_limite as ora_limite 
+  //                 FROM gare 
+  //                 	JOIN calendario ON gare.pk = calendario.fk_gara 
+  //                 WHERE calendario.fk_campionato='$id_campionato' AND 
+  //                 	(CURDATE() < DATE(data) OR (CURDATE() = DATE(data) AND CURRENT_TIME() < ora_limite ) )
+  getNextRace(idCampionato: string) {
+    let query = this.knex(this.knex.ref('calendario').as("c"))
+              .where('c.fk_campionato', idCampionato)
+              .andWhere(this.knex.raw(`CURDATE() < DATE_SUB(DATE(data), INTERVAL 2 DAY)`))
+              .join(this.knex.ref('gare').as('g'), 'g.pk', '=', 'c.fk_gara')
+              .first(this.knex.ref('c.pk').as('id'),
+                    this.knex.ref('c.ordine_gp').as('ordine_gp'),
+                    this.knex.ref('g.nome').as('nome_gara'),
+                    this.knex.ref('g.luogo').as('luogo_gara'), 
+                    this.knex.ref('c.data').as('data'),
+                    this.knex.ref('c.ora_limite').as('ora_limite_scommesse'));
+
+    return query;
+  }
+
+  getCurrentRace(idCampionato: string) {
+    let query = this.knex(this.knex.ref('calendario').as("c"))
+              .where('c.fk_campionato', idCampionato)
+              .andWhere(this.knex.raw(`CURDATE() = DATE_SUB(DATE(data), INTERVAL 2 DAY) OR CURDATE() = DATE_SUB(DATE(data), INTERVAL 1 DAY) OR CURDATE() = DATE(data)`))
+              .join(this.knex.ref('gare').as('g'), 'g.pk', '=', 'c.fk_gara')
+              .first(this.knex.ref('c.pk').as('id'),
+                    this.knex.ref('c.ordine_gp').as('ordine_gp'),
+                    this.knex.ref('g.nome').as('nome_gara'),
+                    this.knex.ref('g.luogo').as('luogo_gara'), 
+                    this.knex.ref('c.data').as('data'),
+                    this.knex.ref('c.ora_limite').as('ora_limite_scommesse'));
+
+    return query;
+  }
 }
+
+// gare passate
+// SELECT g.pk as pkgara, g.nome as nomegara, c.ordine_gp as ordinegp, c.data, c.ora_limite as ora_limite 
+// 					FROM gare as g 
+//                          JOIN calendario as c ON g.pk = c.fk_gara 
+// 					WHERE (c.fk_campionato = '%s') 
+//                     	   AND ((CURDATE() > DATE(c.data)) OR (CURDATE() = DATE(c.data) AND CURRENT_TIME() > ora_limite))
+
+//Scommesse
+// SELECT u.nome as nome_utente, u.cognome as cognome_utente, s.data_ora_ins as timestamp, s.pt as punteggio, s.posizione as posizione, 
+//       									 p.nome as nome_pilota, p.cognome as cognome_pilota, s.esito as esito
+//                                   FROM scommesse as s
+//                                   	JOIN gare ON gare.pk = s.fk_gara 
+//                                     JOIN piloti as p ON p.pk = s.fk_pilota 
+//                                     JOIN utenti as u ON u.iduser = s.idutente
+//                                   WHERE gare.pk = '%s' AND s.fk_campionato = '%s'
+//                                   ORDER BY s.idutente

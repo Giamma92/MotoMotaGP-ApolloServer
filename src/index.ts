@@ -29,6 +29,7 @@ const typeDefs = `#graphql
       id: Int!
       ordine_gp: Int!
       nome_gara: String!
+      luogo_gara: String!
       data: Date!
       ora_limite_scommesse: String!
       # fk_gara: Int!
@@ -198,7 +199,10 @@ const typeDefs = `#graphql
         team(username: String!, idCampionato: String!): Teams,
         teams(idCampionato: String!): [Teams],
         classifica(idCampionato: String!, username: String): [Classifica],
+        nextRace(idCampionato: String!): Calendario,
+        currentRace(idCampionato: String!): Calendario,
         # entity(collection: String, id: ID): Entity,
+        # getEntities(collection: String, limiCurrentt: Int!): [Entity]
         # getEntities(collection: String, limit: Int!): [Entity]
     }
 `;
@@ -235,6 +239,12 @@ const resolvers = {
     },
     classifica: async (parent, args, ctx: DataSourceContext) => {
       return ctx.dataSources.db.getClassifica(args.idCampionato, args.username);
+    },
+    nextRace: async (parent, args, ctx: DataSourceContext) => {
+      return ctx.dataSources.db.getNextRace(args.idCampionato);
+    },
+    currentRace: async (parent, args, ctx: DataSourceContext) => {
+      return ctx.dataSources.db.getCurrentRace(args.idCampionato);
     },
     // getEntities: async (parent, args, ctx: DataSourceContext) => {
     //   return ctx.dataSources.db.getEntities(args.collection, args.limit);
