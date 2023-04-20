@@ -130,7 +130,48 @@ export class MyDatabase extends SQLDataSource {
 
     return query;
   }
+
+  getPiloti(idCampionato: string) {
+    let query = this.knex(this.knex.ref('piloti_campionato').as("pc"))
+    .where('pc.fk_campionato', idCampionato)
+    .join(this.knex.ref('piloti').as('p'), 'p.pk', '=', 'pc.fk_pilota')
+    .join(this.knex.ref('scuderie').as('s'), 's.pk', '=', 'pc.fk_scuderia')
+    .select(this.knex.ref('p.pk').as('id'),
+          this.knex.ref('p.nome').as('nome'),
+          this.knex.ref('p.cognome').as('cognome'),
+          this.knex.ref('s.nome').as('scuderia'));
+  
+    return query;
+  }
+
+  getScommesse(idCampionato: string, username: string = null, idGara: string = null, idPilota: string = null) {
+    let query = this.knex(this.knex.ref('scommesse').as("s"))
+    .where('s.fk_campionato', idCampionato)
+    .select(this.knex.ref('s.pk').as('id'),
+          this.knex.ref('s.fk_campionato').as('idCampionato'),
+          this.knex.ref('s.idutente').as('username'),
+          this.knex.ref('s.fk_gara').as('idGara'),
+          this.knex.ref('s.fk_pilota').as('idPilota'),
+          this.knex.ref('s.data_ora_ins').as('dataOraIns'),
+          this.knex.ref('s.posizione').as('posizione'),
+          this.knex.ref('s.pt').as('punteggio'),
+          this.knex.ref('s.esito').as('esito'),
+          );
+      
+    if(!!username) query.where('s.idutente', username);
+    if(!!idGara) query.where('s.fk_gara', idGara);
+    if(!!idPilota) query.where('s.fk_pilota', idPilota);
+  
+    return query;
+  }
+
+  insertScommessa(idCampionato: string, username: string, idPilota: string, idGara: string, posizione: string, punteggio: string) {
+    var result = this.knex('scommesse').insert({fk_campionato: idCampionato, idutente: username, fk_gara: idGara, fk_pilota: idPilota, posizione: posizione, pt: punteggio})
+    return result;
+  }
+
 }
+
 
 // gare passate
 // SELECT g.pk as pkgara, g.nome as nomegara, c.ordine_gp as ordinegp, c.data, c.ora_limite as ora_limite 

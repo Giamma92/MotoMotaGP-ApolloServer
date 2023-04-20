@@ -82,9 +82,10 @@ const typeDefs = `#graphql
     }
 
     type Piloti {
-      pk: Int!
+      id: Int!
       nome: String!
       cognome: String!
+      scuderia: String!
     }
 
     type Piloti_campionato {
@@ -126,15 +127,15 @@ const typeDefs = `#graphql
       data_ora_ins: String!
     }
 
-    type Scommesse {
-      pk: Int!
-      fk_campionato: Int!
-      idutente: String!
-      fk_gara: Int!
-      fk_pilota: Int!
+    type Scommessa {
+      id: Int!
+      idCampionato: Int!
+      username: String!
+      idGara: Int!
+      idPilota: Int!
       posizione: Int!
-      pt: Int!
-      data_ora_ins: String!
+      punteggio: Int!
+      dataOraIns: String!
       esito: Int
     }
 
@@ -190,6 +191,11 @@ const typeDefs = `#graphql
       fk_ruolo: Int!
     }
 
+    type Result {
+      success: Boolean,
+      message: String
+    }
+
     # The "Query" type is special: it lists all of the available queries that
     # clients can execute, along with the return type for each.
     type Query {
@@ -201,9 +207,15 @@ const typeDefs = `#graphql
         classifica(idCampionato: String!, username: String): [Classifica],
         nextRace(idCampionato: String!): Calendario,
         currentRace(idCampionato: String!): Calendario,
+        piloti(idCampionato: String!): [Piloti],
+        scommesse(idCampionato: String!, username: String, idGara: String, idPilota: String): [Scommessa]
         # entity(collection: String, id: ID): Entity,
         # getEntities(collection: String, limiCurrentt: Int!): [Entity]
         # getEntities(collection: String, limit: Int!): [Entity]
+    }
+
+    type Mutation {
+      insertScommessa(idCampionato: String, username: String, idPilota: String, idGara: String, posizione: String, punteggio: String): Result
     }
 `;
 
@@ -246,11 +258,50 @@ const resolvers = {
     currentRace: async (parent, args, ctx: DataSourceContext) => {
       return ctx.dataSources.db.getCurrentRace(args.idCampionato);
     },
+    piloti: async (parent, args, ctx: DataSourceContext) => {
+      return ctx.dataSources.db.getPiloti(args.idCampionato);
+    },
+    scommesse: async (parent, args, ctx: DataSourceContext) => {
+      return ctx.dataSources.db.getScommesse(args.idCampionato, args.username, args.idGara, args.idPilota);
+    },
     // getEntities: async (parent, args, ctx: DataSourceContext) => {
     //   return ctx.dataSources.db.getEntities(args.collection, args.limit);
     // },
   },
-  Date: dateScalar,
+  Mutation: {
+    insertScommessa: async (parent, args, ctx: DataSourceContext) => {
+
+      const config = await ctx.dataSources.db.getConfiguration('1');
+      // console.log('max points', config.bets_limit_points);
+      // console.log("[DEBUG scommessa maggiore del punteggio]", +args.punteggio > +config.bets_limit_points);
+      
+      
+      const scommesse = await ctx.dataSources.db.getScommesse(args.idCampionato, args.username, args.idGara, null);
+      //console.log('scommesse', scommesse);
+
+      if(scommesse.length > +config.bets_limit_gara)
+        return { success: false, message: 'Scommessa annullata: limite ' + config.bets_limit_gara+ ' scommesse superato!' };
+      
+      let sum = +args.punteggio;;
+      !!scommesse && scommesse.forEach(s => sum += s.punteggio);
+      //console.log('somma', sum);
+      
+      if(sum > +config.bets_limit_points)
+        return { success: false, message: 'Scommessa annullata: limite ' + config.bets_limit_points+ 'pt superato!' };
+
+      const scommessePilota = await ctx.dataSources.db.getScommesse(args.idCampionato, args.username, null, args.idPilota);
+      console.log('num scommesse pilota', scommessePilota.length );
+
+      if (scommessePilota.length >= +config.bets_limit_pilota) 
+        return { success: false, message: 'Scommessa annullata: limite scommesse pilota superato!' };
+
+      // let result = await ctx.dataSources.db.insertScommessa(args.idCampionato, args.username, args.idPilota, args.idGara, args.posizione, args.punteggio);
+      // if (!result) return { success: false, message: 'Scommessa non inserita!' };
+      // return {success: true, message: 'Scommessa inserita! [ID: ' + result + ']'}
+      return {success: true, message: 'Scommessa inserita!'};
+    }
+  },
+  Date: dateScalar
 };
 
 // The ApolloServer constructor requires two parameters: your schema
