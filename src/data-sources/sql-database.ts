@@ -166,8 +166,36 @@ export class MyDatabase extends SQLDataSource {
   }
 
   insertScommessa(idCampionato: string, username: string, idPilota: string, idGara: string, posizione: string, punteggio: string) {
-    var result = this.knex('scommesse').insert({fk_campionato: idCampionato, idutente: username, fk_gara: idGara, fk_pilota: idPilota, posizione: posizione, pt: punteggio})
+    var result = this.knex('scommesse')
+                    .insert({
+                      fk_campionato: idCampionato, 
+                      idutente: username, 
+                      fk_gara: idGara, 
+                      fk_pilota: idPilota, 
+                      posizione: posizione, 
+                      pt: punteggio});
     return result;
+  }
+
+  getSchieramenti(idCampionato: string, username: string = null, idGara: string = null, idPilotaGara: string = null, idPilotaQualifica: string = null) {
+    let query = this.knex(this.knex.ref('schieramenti').as("s"))
+    .where('s.fk_campionato', idCampionato)
+    .select(this.knex.ref('s.pk').as('id'),
+          this.knex.ref('s.fk_campionato').as('idCampionato'),
+          this.knex.ref('s.id_utente').as('username'),
+          this.knex.ref('s.fk_gara').as('idGara'),
+          this.knex.ref('s.fk_pilota_gara').as('idPilotaGara'),
+          this.knex.ref('s.fk_pilota_qualifica').as('idPilotaQualifica'),
+          this.knex.ref('s.data_ora_ins').as('dataOraIns'),
+          );
+
+      
+    if(!!username) query.where('s.idutente', username);
+    if(!!idGara) query.where('s.fk_gara', idGara);
+    if(!!idPilotaGara) query.where('s.fk_pilota_gara', idPilotaGara);
+    if(!!idPilotaQualifica) query.where('s.fk_pilota_qualifica', idPilotaQualifica);
+  
+    return query;
   }
 
 }
