@@ -117,14 +117,14 @@ const typeDefs = `#graphql
       descr: String!
     }
 
-    type Schieramenti {
-      pk: Int!
-      fk_campionato: Int!
-      fk_gara: Int!
-      id_utente: String!
-      fk_pilota_gara: Int!
-      fk_pilota_qualifica: Int!
-      data_ora_ins: String!
+    type Schieramento {
+      id: Int!
+      idCampionato: Int!
+      idGara: Int!
+      username: String!
+      idiPilotaGara: Int!
+      idPilotaQualifica: Int!
+      dataOraIns: String!
     }
 
     type Scommessa {
@@ -208,7 +208,8 @@ const typeDefs = `#graphql
         nextRace(idCampionato: String!): Calendario,
         currentRace(idCampionato: String!): Calendario,
         piloti(idCampionato: String!): [Piloti],
-        scommesse(idCampionato: String!, username: String, idGara: String, idPilota: String): [Scommessa]
+        scommesse(idCampionato: String!, username: String, idGara: String, idPilota: String): [Scommessa],
+        schieramenti(idCampionato: String!, username: String, idGara: String, idPilota: String): [Schieramento]
         # entity(collection: String, id: ID): Entity,
         # getEntities(collection: String, limiCurrentt: Int!): [Entity]
         # getEntities(collection: String, limit: Int!): [Entity]
@@ -263,6 +264,9 @@ const resolvers = {
     },
     scommesse: async (parent, args, ctx: DataSourceContext) => {
       return ctx.dataSources.db.getScommesse(args.idCampionato, args.username, args.idGara, args.idPilota);
+    },
+    schieramenti: async (parent, args, ctx: DataSourceContext) => {
+      return ctx.dataSources.db.getSchieramenti(args.idCampionato, args.username, args.idGara, args.idPilota);
     },
     // getEntities: async (parent, args, ctx: DataSourceContext) => {
     //   return ctx.dataSources.db.getEntities(args.collection, args.limit);
