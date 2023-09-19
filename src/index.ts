@@ -4,13 +4,25 @@ import { startStandaloneServer } from "@apollo/server/standalone";
 // import { FirebaseAPI } from "./data-sources/firebase-api.js";
 import { MyDatabase }  from "./data-sources/sql-database.js";
 import { dateScalar } from './custom-types/date-scalar.js';
+import { decodedToken } from './utils/decodedToken.js';
+import { GraphQLError } from "graphql";
 
 import dotenv from 'dotenv';
+import jwt from 'jsonwebtoken';
+
+
 
 dotenv.config();
 
 interface DataSourceContext {
   dataSources: DataSources;
+  req: any
+}
+
+interface UserInterface {
+  id: String,
+  email: String
+  token: String
 }
 
 interface DataSources {
@@ -196,6 +208,10 @@ const typeDefs = `#graphql
       message: String
     }
 
+    type LoginResult {
+      token: String!
+    }
+
     # The "Query" type is special: it lists all of the available queries that
     # clients can execute, along with the return type for each.
     type Query {
@@ -216,7 +232,8 @@ const typeDefs = `#graphql
     }
 
     type Mutation {
-      insertScommessa(idCampionato: String, username: String, idPilota: String, idGara: String, posizione: String, punteggio: String): Result
+      insertScommessa(idCampionato: String, username: String, idPilota: String, idGara: String, posizione: String, punteggio: String): Result,
+      loginUser(username: String, password: String): LoginResult
     }
 `;
 
@@ -236,6 +253,7 @@ const typeDefs = `#graphql
 const resolvers = {
   Query: {
     calendario: async (parent, args, ctx: DataSourceContext) => {
+      const decoded = decodedToken(ctx.req);
       return ctx.dataSources.db.getCalendar(args.idCampionato);
     },
     config: async (parent, args, ctx: DataSourceContext) => {
@@ -303,6 +321,38 @@ const resolvers = {
       // if (!result) return { success: false, message: 'Scommessa non inserita!' };
       // return {success: true, message: 'Scommessa inserita! [ID: ' + result + ']'}
       return {success: true, message: 'Scommessa inserita!'};
+    },
+    loginUser: async (root, args, ctx: DataSourceContext)  => {
+      //const { data: { username, password } } = args;
+      const authenticatedUser = await ctx.dataSources.db.getUser(args.username, args.password);
+      
+      if (!authenticatedUser) {
+        throw new GraphQLError('Autenticazione fallita', {
+          extensions: {
+            code: 'UNAUTHENTICATED',
+            http: { status: 401 },
+          },
+        });
+      }
+
+      //console.log("Logged user", authenticatedUser)
+
+      const isMatch = args.password == authenticatedUser.pwd;
+      if (!isMatch) {
+        throw new GraphQLError('Autenticazione fallita', {
+          extensions: {
+            code: 'UNAUTHENTICATED',
+            http: { status: 401 },
+          },
+        });
+      }
+
+      const token = jwt.sign({
+        data: authenticatedUser
+      }, 'supersecret', { expiresIn: 60 * 60 });
+
+      console.log("Generated token: ", token);
+      return {token : token};
     }
   },
   Date: dateScalar
@@ -332,7 +382,8 @@ const db = new MyDatabase(knexConfig);
 
 const server = new ApolloServer({
   typeDefs,
-  resolvers
+  resolvers,
+  introspection: process.env.NODE_ENV !== 'production'
   // cache,
   // context,
   // dataSources: () => ({ db })
@@ -346,12 +397,18 @@ const server = new ApolloServer({
 //  3. prepares your app to handle incoming requests
 const { url } = await startStandaloneServer(server, {
   listen: { port: +process.env.PORT || 4000 },
-  context: async () => {
-    const { cache } = server;
+  context: async ({req, res}) => {
+    
+    //const token = req.headers.authorization || '';
+
+    //const { cache } = server;
+    //const decoded = decodedToken(req);
+
     return {
       // We create new instances of our data sources with each request,
       // passing in our server's cache.
       dataSources: { db: db },
+      req
     } as DataSourceContext
   },
 });
