@@ -209,7 +209,7 @@ const typeDefs = `#graphql
     }
 
     type LoginResult {
-      token: String!
+      token: String
     }
 
     # The "Query" type is special: it lists all of the available queries that
@@ -327,24 +327,26 @@ const resolvers = {
       const authenticatedUser = await ctx.dataSources.db.getUser(args.username, args.password);
       
       if (!authenticatedUser) {
-        throw new GraphQLError('Autenticazione fallita', {
-          extensions: {
-            code: 'UNAUTHENTICATED',
-            http: { status: 401 },
-          },
-        });
+        return {token: null}
+        // throw new GraphQLError('Autenticazione fallita', {
+        //   extensions: {
+        //     code: 'UNAUTHENTICATED',
+        //     http: { status: 401 },
+        //   },
+        // });
       }
 
       //console.log("Logged user", authenticatedUser)
 
       const isMatch = args.password == authenticatedUser.pwd;
       if (!isMatch) {
-        throw new GraphQLError('Autenticazione fallita', {
-          extensions: {
-            code: 'UNAUTHENTICATED',
-            http: { status: 401 },
-          },
-        });
+        return {token: null}
+        // throw new GraphQLError('Autenticazione fallita', {
+        //   extensions: {
+        //     code: 'UNAUTHENTICATED',
+        //     http: { status: 401 },
+        //   },
+        // });
       }
 
       const token = jwt.sign({
